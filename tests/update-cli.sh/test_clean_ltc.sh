@@ -15,12 +15,17 @@ echo "tmpdir is: $tmpdir"
 ${binDir}/$bin -x -c ltc -p $tmpdir
 
 failCount=0
-# There should be one link, one binary.
+# There should be one link, one binary, and one lattice-bundle dir
 c=0
 for i in ${tmpdir}/*; do c=$((c + 1)); done
 
-if [ $c -ne 2 ]; then
+if [ $c -ne 3 ]; then
     echo "FAILED: incorrect number of files in tmp bindir"
+    failCount=$((failCount + 1))
+fi
+
+if [ ! -d ${tmpdir}/lattice-bundle-* ]; then
+    echo "FAILED: no lattice-bundle directory."
     failCount=$((failCount + 1))
 fi
 

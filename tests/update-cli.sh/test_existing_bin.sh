@@ -16,11 +16,21 @@ cat > ${tmpdir}/cf <<-EOF
 	#!/bin/sh
 	echo "cf fake version 0.0.1-abcde"
 EOF
+
+failCount=0
+
+# First test if it fails when the existing binary isn't executable
+${binDir}/$bin -x -p $tmpdir
+
+if [ 3 -ne $? ]; then
+    echo "FAILED: Should have exit 3 at non-executable existing bin."
+    failCount=$((failCount + 1))
+fi
+
 chmod +x ${tmpdir}/cf
 
 ${binDir}/$bin -x -p $tmpdir
 
-failCount=0
 # There should be two links, two binaries
 c=0
 for i in ${tmpdir}/*; do c=$((c + 1)); done
