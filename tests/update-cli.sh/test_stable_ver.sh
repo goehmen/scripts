@@ -1,6 +1,8 @@
 #!/bin/bash -x
 #
-# update-cli contains code to d/l unstable versions of the cli, which are indicated by a build number or SHA. When downloading a stable release, update-cli shouldn't append the build
+# update-cli contains code to d/l unstable versions of the cli, which
+# are indicated by a build number or SHA. HOWEVER, when downloading a
+# stable release, update-cli shouldn't append the build.
 
 testsDir=$(cd $(dirname $0); pwd)
 bin=$(basename $testsDir)

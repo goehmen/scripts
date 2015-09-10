@@ -47,14 +47,19 @@ Options:
 version="0.0.4"
 
 # Format is OS_CLI(Release Unstable)
-darwin_CF=("https://cli.run.pivotal.io/stable?release=macosx64-binary&source=internal" "https://cli.run.pivotal.io/edge?arch=macosx64&source=internal")
+darwin_CF=("https://cli.run.pivotal.io/stable?release=macosx64-binary&source=internal" # Stable
+           "https://cli.run.pivotal.io/edge?arch=macosx64&source=internal")            # Edge
 # Assuming 64 bit versions only
-linux_CF=("https://cli.run.pivotal.io/stable?release=linux64-binary&source=internal" "https://cli.run.pivotal.io/edge?arch=linux64&source=internal")
-windows_CF=("https://cli.run.pivotal.io/stable?release=windows64-exe&source=internal" "https://cli.run.pivotal.io/edge?arch=windows64&source=internal")
+linux_CF=("https://cli.run.pivotal.io/stable?release=linux64-binary&source=internal"   # Stable
+          "https://cli.run.pivotal.io/edge?arch=linux64&source=internal")              # Edge
+windows_CF=("https://cli.run.pivotal.io/stable?release=windows64-exe&source=internal"  # Stable
+            "https://cli.run.pivotal.io/edge?arch=windows64&source=internal")          # Edge
 #
-darwin_LTC=("https://lattice.s3.amazonaws.com/releases/latest/darwin-amd64/ltc" "http://lattice.s3.amazonaws.com/nightly/lattice-bundle-latest-osx.zip")
+darwin_LTC=("https://lattice.s3.amazonaws.com/releases/lattice-bundle-latest-osx.zip"  # Stable
+            "http://lattice.s3.amazonaws.com/nightly/lattice-bundle-latest-osx.zip")   # Edge
 # darwin_LTC=("https://lattice.s3.amazonaws.com/releases/latest/darwin-amd64/ltc" "https://lattice.s3.amazonaws.com/unstable/latest/darwin-amd64/ltc")
-linux_LTC=("https://lattice.s3.amazonaws.com/releases/latest/linux-amd64/ltc" "http://lattice.s3.amazonaws.com/nightly/lattice-bundle-latest-linux.zip")
+linux_LTC=("https://lattice.s3.amazonaws.com/releases/lattice-bundle-latest-linux.zip" # Stable
+           "http://lattice.s3.amazonaws.com/nightly/lattice-bundle-latest-linux.zip")  # Edge
 # linux_LTC=("https://lattice.s3.amazonaws.com/releases/latest/linux-amd64/ltc" "https://lattice.s3.amazonaws.com/unstable/latest/linux-amd64/ltc")
 windows_LTC=("/bin/false" "/bin/false")
 #
@@ -131,21 +136,21 @@ relink () {
             mv ${bindir}/$cli ${bindir}/${cli}-$cur_version
         fi
     fi
+    # Finally, if we haven't moved it aside already, then we're just
+    # overwriting the current version with a new build, so remove the
+    # current binary.
+    if [ -L ${bindir}/$cli ] ; then rm ${bindir}/$cli; fi
+
 
     # LTC ONLY - move the vagrant and terraform files into place.
     # They are always versioned, so no shuffling or re-linking required.
     if [ "ltc" == $cli ] ; then
-        bundledir=lattice-bundle-*
+        bundledir=$(echo lattice-bundle-*)
         if [ ! -d ${bindir}/$bundledir ]; then
             mv lattice-bundle-* ${bindir}
         fi
     fi
     
-    # Finally, if we haven't moved it aside already, then we're just
-    # overwriting the current version with a new build, so remove the
-    # current binary.
-    if [ -e ${bindir}/$cli -a -L ${bindir}/$cli ] ; then rm ${bindir}/$cli; fi
-
     if [ 0 -eq $rel ]; then
         mv $cli ${bindir}/${cli}-$new_version
         ln -s ${bindir}/${cli}-$new_version ${bindir}/$cli
@@ -261,7 +266,6 @@ case $cli in
         rm cf-$$.bin
         ;;
     ltc)
-        echo "FIXME, using new .zip mode for latest; this will not work for stable until a release is complete"
         unzip -q ltc-$$.bin
         mv */ltc .
         ;;
@@ -272,9 +276,7 @@ case $cli in
 esac
 getver . $cli
 new_version=$version
-if [ 1 -eq $rel ]; then
-    new_build=$build
-fi
+new_build=$build
 
 echo "Installing in $bindir"
 relink
@@ -283,10 +285,17 @@ cd /tmp ; rm -r $tmpdir
 # If we've updated the .old link, report what the new .old is.
 if [ "$old_version"X != "N/AX" ]; then
     if [ "$old_build"X != "N/AX" ]; then
-        echo "Old version ${old_version}-$old_build: ${bindir}/${cli}.old";
+        echo "${bindir}/${cli}.old: ${old_version}-$old_build ";
     else
-        echo "Old version ${old_version}: ${bindir}/${cli}.old";
+        echo "${bindir}/${cli}.old: ${old_version}";
     fi
 fi
 
-echo "New version ${new_version}: ${bindir}/${cli}"
+if [ "$new_build"X != "N/AX" ]; then
+    echo "${bindir}/${cli}: ${new_version}-${new_build}"
+else
+    echo "${bindir}/${cli}: ${new_version}"
+fi
+
+exit 0
+
