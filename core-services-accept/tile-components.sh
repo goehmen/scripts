@@ -18,11 +18,14 @@ Options:
     -t tmpdir         Specify a working directory to use
 "
 
-args=`getopt p:r:t: $*`; errcode=$?; set -- $args
+args=`getopt hp:r:t: $*`; errcode=$?; set -- $args
 if [ 0 -ne $errcode ]; then echo ; echo "$usage" ; exit $errcode ; fi
 
 for i ; do
     case $i in
+        -h)
+            echo "$usage" ; exit 0
+            ;;
         -p)
             PRODUCT=$2
             product_file=$(echo $PRODUCT | tr '-' '_')

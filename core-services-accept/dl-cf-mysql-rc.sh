@@ -16,7 +16,7 @@ Options:
     -r version        Specify the version to be downloaded, e.g. 24.21.0
 "
 
-args=`getopt hr: $*`; errcode=$?; set -- $args
+args=`getopt phr: $*`; errcode=$?; set -- $args
 if [ 0 -ne $errcode ]; then echo ; echo "$usage" ; exit $errcode ; fi
 
 for i ; do
@@ -27,6 +27,7 @@ for i ; do
             ;;
         -p)
             PRIVATE=1
+            shift ; 
             ;;
         -r)
             VERSION=$2
