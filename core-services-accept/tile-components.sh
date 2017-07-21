@@ -28,7 +28,7 @@ for i ; do
             ;;
         -p)
             PRODUCT=$2
-            product_file=$(echo $PRODUCT | tr '-' '_')
+            product_file=$(echo $PRODUCT | tr '-' '_').yml
             shift ; shift ;;
         -r)
             VERSION=$2
@@ -71,10 +71,13 @@ unzip -q $s3File
 
 case $1 in
     stemcell)
-        awk '/product_version:/ {print} /stemcell/,/version/ {print}' metadata/${product_file}.yml
+        awk '/product_version:/ {print} /stemcell/,/version/ {print}' metadata/${product_file}
         ;;
     cf-mysql)
-        awk '/file: cf-mysql/,/version: / {print} /product_version: / {print}' metadata/${product_file}.yml
+        awk '/file: cf-mysql/,/version: / {print} /product_version: / {print}' metadata/${product_file}
+        ;;
+    mysql-monitoring)
+        awk '/file: mysql-monitoring/,/version: / {print} /product_version: / {print}' metadata/${product_file}
         ;;
 esac
 
