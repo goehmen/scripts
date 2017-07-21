@@ -3,7 +3,6 @@
 set -e
 
 TMPDIR="/var/tmp/t"
-API_TOKEN=${API_TOKEN:?[ERROR]: API_TOKEN environment variable must be set.}
 
 usage="\
 $0 -p product-name -r version [-t tmpdir]
@@ -36,6 +35,8 @@ done
 
 if [ "--" == $1 ]; then shift; fi
     
+API_TOKEN=${API_TOKEN:?[ERROR]: API_TOKEN environment variable must be set.}
+
 if [ ! -d ${TMPDIR} ]; then
     mkdir ${TMPDIR}
     if [ 0 -ne $? ]; then

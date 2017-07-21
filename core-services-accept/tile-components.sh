@@ -4,7 +4,6 @@ set -e
 
 WORKDIR="/var/tmp/t"
 SUBDIR=$(date +"%Y-%m-%d-%H:%M:%S")
-API_TOKEN=${API_TOKEN:?[ERROR]: API_TOKEN environment variable must be set.}
 
 usage="\
 $0 -p product-name -r version [-t tmpdir]
@@ -40,6 +39,8 @@ for i ; do
 done
 
 if [ "--" == $1 ]; then shift; fi
+
+API_TOKEN=${API_TOKEN:?[ERROR]: API_TOKEN environment variable must be set.}
 
 if [ ! -d ${WORKDIR} ]; then
     mkdir ${WORKDIR}
