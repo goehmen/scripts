@@ -8,7 +8,7 @@ SUBDIR=$(date +"%Y-%m-%d-%H:%M:%S")
 usage="\
 $0 -p product-name -r version [-t tmpdir] component
 
-    Download a tile, validate certain contents within it.
+    Download the most recent version of a tile, validate contents within it.
 
 Options:
     -h                This help
@@ -65,6 +65,7 @@ case ${VERSION} in
         ;;
 esac
 
+# Download the most recent RC in the correct AWS bucket
 s3File=$(aws s3 ls $s3Path| sort -r | awk 'NR == 1 {print $4}')
 aws s3 cp ${s3Path}${s3File} .
 unzip -q $s3File
