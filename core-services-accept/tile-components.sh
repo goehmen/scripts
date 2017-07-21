@@ -6,7 +6,7 @@ WORKDIR="/var/tmp/t"
 SUBDIR=$(date +"%Y-%m-%d-%H:%M:%S")
 
 usage="\
-$0 -p product-name -r version [-t tmpdir]
+$0 -p product-name -r version [-t tmpdir] component
 
     Download a tile, validate certain contents within it.
 
@@ -15,6 +15,7 @@ Options:
     -p product        Specify the name of the product, e.g. p-mysql
     -r version        Specify the version to be downloaded, e.g. 1.9.4
     -t tmpdir         Specify a working directory to use
+    component         Which version to validate, e.g. cf-mysql, stemcell, ...
 "
 
 args=`getopt hp:r:t: $*`; errcode=$?; set -- $args
