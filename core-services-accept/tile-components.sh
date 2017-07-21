@@ -4,9 +4,12 @@ set -e
 
 WORKDIR="/var/tmp/t"
 SUBDIR=$(date +"%Y-%m-%d-%H:%M:%S")
+PROFILE="default"
+PRODUCT="XX"
+VERSION="XX"
 
 usage="\
-$0 -p product-name -r version [-t tmpdir] component
+$0 -p product-name -r version [-i aws profile] [-t tmpdir] component
 
     Download the most recent version of a tile, validate contents within it.
 
@@ -15,10 +18,11 @@ Options:
     -p product        Specify the name of the product, e.g. p-mysql
     -r version        Specify the version to be downloaded, e.g. 1.9.4
     -t tmpdir         Specify a working directory to use
+    -i profile        AWS profile to specify when running s3 client
     component         Which version to validate, e.g. cf-mysql, stemcell, ...
 "
 
-args=`getopt hp:r:t: $*`; errcode=$?; set -- $args
+args=`getopt hp:r:t:i: $*`; errcode=$?; set -- $args
 if [ 0 -ne $errcode ]; then echo ; echo "$usage" ; exit $errcode ; fi
 
 for i ; do
@@ -33,15 +37,22 @@ for i ; do
         -r)
             VERSION=$2
             shift ; shift ;;
+        -i)
+            PROFILE=$2
+            shift ; shift ;;
         -t)
             WORKDIR=$2
             shift ; shift ;;
     esac
 done
 
-if [ "--" == $1 ]; then shift; fi
+if [ "XX" = "${PRODDUCT}" -o "XX" = "${VERSION}" ]; then
+    echo "[ERROR] Please specify product and version." ; echo
+    echo "$usage"
+    exit -1
+fi
 
-API_TOKEN=${API_TOKEN:?[ERROR]: API_TOKEN environment variable must be set.}
+if [ "--" == $1 ]; then shift; fi
 
 if [ ! -d ${WORKDIR} ]; then
     mkdir ${WORKDIR}
@@ -66,7 +77,7 @@ case ${VERSION} in
 esac
 
 # Download the most recent RC in the correct AWS bucket
-s3File=$(aws s3 ls $s3Path| sort -r | awk 'NR == 1 {print $4}')
+s3File=$(aws --profile=$PROFILE s3 ls $s3Path| sort -r | awk 'NR == 1 {print $4}')
 aws s3 cp ${s3Path}${s3File} .
 unzip -q $s3File
 
