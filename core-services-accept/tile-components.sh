@@ -17,8 +17,8 @@ Options:
     -h                This help
     -p product        Specify the name of the product, e.g. p-mysql
     -r version        Specify the version to be downloaded, e.g. 1.9.4
-    -t tmpdir         Specify a working directory to use
-    -i profile        AWS profile to specify when running s3 client
+    -t tmpdir         Specify a working directory to use (optional. default /var/tmp/t)
+    -i profile        AWS profile to specify when running s3 client (optional.)
     component         Which version to validate, e.g. cf-mysql, stemcell, ...
 "
 
@@ -65,8 +65,11 @@ fi
 mkdir -p ${WORKDIR}/${SUBDIR} ; cd ${WORKDIR}/${SUBDIR} ;
 
 case ${VERSION} in
-    1.9*)
+    1.10*)
         s3Path="s3://pcf-core-services-artifacts/p-mysql/master/tested/"
+        ;;
+    1.9*)
+        s3Path="s3://pcf-core-services-artifacts/p-mysql/releases/1.9/tested/"
         ;;
     1.8*)
         s3Path="s3://pcf-core-services-artifacts/p-mysql/releases/1.8/tested/"
@@ -76,10 +79,12 @@ case ${VERSION} in
         ;;
 esac
 
-# Download the most recent RC in the correct AWS bucket
+# If it hasn't already been downloaded, get the most recent RC in the correct AWS bucket
 s3File=$(aws --profile=$PROFILE s3 ls $s3Path| sort -r | awk 'NR == 1 {print $4}')
-aws s3 cp ${s3Path}${s3File} .
-unzip -q $s3File
+if [ ! -f ${WORKDIR}/${s3File} ]; then 
+    aws s3 cp ${s3Path}${s3File} ${WORKDIR}
+fi
+unzip -q ${WORKDIR}/${s3File}
 
 case $1 in
     stemcell)
