@@ -22,7 +22,7 @@ Options:
     component         Which version to validate, e.g. cf-mysql, stemcell, ...
 "
 
-args=`getopt hp:r:t:i: $*`; errcode=$?; set -- $args
+args=`getopt hxp:r:t:i: $*`; errcode=$?; set -- $args
 if [ 0 -ne $errcode ]; then echo ; echo "$usage" ; exit $errcode ; fi
 
 for i ; do
@@ -43,6 +43,9 @@ for i ; do
         -t)
             WORKDIR=$2
             shift ; shift ;;
+        -x)
+            echo "Debug mode."
+            set -x ; shift ;;
     esac
 done
 
