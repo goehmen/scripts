@@ -20,11 +20,14 @@ Options:
     component         Which version to validate, e.g. cf-mysql, stemcell, ...
 "
 
-args=`getopt p:r:t: $*`; errcode=$?; set -- $args
+args=`getopt hxp:r:t: $*`; errcode=$?; set -- $args
 if [ 0 -ne $errcode ]; then echo ; echo "$usage" ; exit $errcode ; fi
 
 for i ; do
     case $i in
+        -h)
+            echo "$usage" ; exit 0
+            ;;
         -p)
             PRODUCT=$2
             shift ; shift ;;
@@ -32,8 +35,11 @@ for i ; do
             VERSION=$2
             shift ; shift ;;
         -t)
-            TMPDIR=$2
+            WORKDIR=$2
             shift ; shift ;;
+        -x)
+            echo "Debug mode."
+            set -x ; shift ;;
     esac
 done
 
@@ -70,7 +76,7 @@ jq_string=".[] | select (.name == \"$file\") | .id"
 
 product_file_id=$(pivnet product-files -p ${PRODUCT} -r ${VERSION} --format json | jq '.[] | select (.name == "'$file'") | .id')
 
-pivnet download-product-files -p ${PRODUCT} -r ${VERSION} -i ${product_file_id}
+pivnet download-product-files -p ${PRODUCT} -r ${VERSION} -i ${product_file_id} --accept-eula
 
 unzip -q $file
 
