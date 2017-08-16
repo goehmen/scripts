@@ -63,22 +63,21 @@ fi
 
 mkdir -p ${WORKDIR}/${SUBDIR} ; cd ${WORKDIR}/${SUBDIR} ;
 
-pivnet login --api-token=${API_TOKEN}
-
-if [ 0 -ne $? ]; then
-   echo "PivNet login failed. Check API_TOKEN and try again."
-   exit 1
-fi
-
 product_file=$(echo ${PRODUCT} | tr '-' '_').yml
 file="${PRODUCT}-${VERSION}.pivotal"
 jq_string=".[] | select (.name == \"$file\") | .id"
 
-product_file_id=$(pivnet product-files -p ${PRODUCT} -r ${VERSION} --format json | jq '.[] | select (.name == "'$file'") | .id')
+if [ ! -f ${WORKDIR}/${file} ]; then    
+    pivnet login --api-token=${API_TOKEN}
+    if [ 0 -ne $? ]; then
+        echo "PivNet login failed. Check API_TOKEN and try again."
+        exit 1
+    fi
+    product_file_id=$(pivnet product-files -p ${PRODUCT} -r ${VERSION} --format json | jq '.[] | select (.name == "'$file'") | .id')
+    pivnet download-product-files -p ${PRODUCT} -r ${VERSION} -i ${product_file_id} --download-dir=.. --accept-eula
+fi
 
-pivnet download-product-files -p ${PRODUCT} -r ${VERSION} -i ${product_file_id} --accept-eula
-
-unzip -q $file
+unzip -q ../${file}
 
 case $1 in
     stemcell)
