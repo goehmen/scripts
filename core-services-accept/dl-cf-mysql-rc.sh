@@ -13,12 +13,13 @@ $0 -r version
 
 Options:
     -h                This help
-    -p                Specify that this is PCF, not an OSS RC
+    -P                Specify that this is PCF, not an OSS RC
+    -p                Specify a product name (defaults to cf-mysql)
     -r version        Specify the version to be downloaded, e.g. 24.21.0
     -d                Debug mode
 "
 
-args=`getopt dphr: $*`; errcode=$?; set -- $args
+args=`getopt dPphr: $*`; errcode=$?; set -- $args
 if [ 0 -ne $errcode ]; then echo ; echo "$usage" ; exit $errcode ; fi
 
 for i ; do
@@ -27,16 +28,21 @@ for i ; do
             echo "$usage"
             exit 0
             ;;
-        -p)
+        -P)
             PRIVATE=1
             shift ; 
+            ;;
+        -p)
+            echo "[ERROR] Not yet implemented"
+            exit 1
             ;;
         -r)
             VERSION=$2
             shift ; shift ;;
         -d)
             set -x
-            shift ; 
+            shift ;
+            ;;
     esac
 done
 
