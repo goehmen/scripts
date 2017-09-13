@@ -70,11 +70,19 @@ jq_string=".[] | select (.name == \"$file\") | .id"
 if [ ! -f ${WORKDIR}/${file} ]; then    
     pivnet login --api-token=${API_TOKEN}
     if [ 0 -ne $? ]; then
-        echo "PivNet login failed. Check API_TOKEN and try again."
+        echo "[ERROR] PivNet login failed. Check API_TOKEN and try again."
         exit 1
     fi
     product_file_id=$(pivnet product-files -p ${PRODUCT} -r ${VERSION} --format json | jq '.[] | select (.name == "'$file'") | .id')
+    if [ 0 -ne $? -o "X" = "${product_file_id}X" ]; then
+        echo "[ERROR] Unable to discover file ID from PivNet, check error output."
+        exit 1
+    fi
     pivnet download-product-files -p ${PRODUCT} -r ${VERSION} -i ${product_file_id} --download-dir=.. --accept-eula
+    if [ 0 -ne $? ]; then
+        echo "[ERROR] Unable to download file from PivNet, check error output."
+        exit 1
+    fi
 fi
 
 unzip -q ../${file}
