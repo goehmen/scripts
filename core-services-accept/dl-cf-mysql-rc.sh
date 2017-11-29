@@ -3,7 +3,8 @@
 set -e
 
 # API_TOKEN=${API_TOKEN:?[ERROR]: API_TOKEN environment variable must be set.}
-PRIVATE=0
+FINAL=0
+PROFILE="default"
 VERSION=""
 
 usage="\
@@ -13,13 +14,14 @@ $0 -r version
 
 Options:
     -h                This help
-    -P                Specify that this is PCF, not an OSS RC
+    -f                Download the latest final release, not a release-candidate.
     -p                Specify a product name (defaults to cf-mysql)
     -r version        Specify the version to be downloaded, e.g. 24.21.0
+    -i profile        AWS profile to specify when running s3 client. (optional)
     -d                Debug mode
 "
 
-args=`getopt dPphr: $*`; errcode=$?; set -- $args
+args=`getopt dfphi:r: $*`; errcode=$?; set -- $args
 if [ 0 -ne $errcode ]; then echo ; echo "$usage" ; exit $errcode ; fi
 
 for i ; do
@@ -28,8 +30,8 @@ for i ; do
             echo "$usage"
             exit 0
             ;;
-        -P)
-            PRIVATE=1
+        -f)
+            FINAL=1
             shift ; 
             ;;
         -p)
@@ -38,6 +40,9 @@ for i ; do
             ;;
         -r)
             VERSION=$2
+            shift ; shift ;;
+        -i)
+            PROFILE=$2
             shift ; shift ;;
         -d)
             set -x
@@ -48,14 +53,14 @@ done
 
 if [ "--" == $1 ]; then shift; fi
 
-if [ 1 == $PRIVATE ]; then
-    s3Path="s3://pcf-mysql-releases/final/"
-else
+if [ 1 == $FINAL ]; then
     s3Path="s3://cf-mysql-releases/final/"
+else
+    s3Path="s3://cf-mysql-releases/release-candidate/"
 fi    
 
 if [ "X" == $VERSION"X" ]; then
-    rcFile=$(aws s3 ls ${s3Path} | gsort -V -rk4 | awk 'NR == 1 {print $4}')
+    rcFile=$(aws --profile=$PROFILE s3 ls ${s3Path} | gsort -V -rk4 | awk 'NR == 1 {print $4}')
 else
     rcFile="cf-mysql-${VERSION}.tgz"
 fi
