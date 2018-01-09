@@ -3,17 +3,32 @@
 # Script to connect to a mysql service instance using cf ssh
 # Requires you're already logged into cf, and have trivial-js
 
+SCRIPT=$(basename $0)
+
 usage="\
-$0 service-instance service-key
+${SCRIPT} [-a app_name] [-p port] [-x] service-instance service-key
+    -a specify which app to use, default trivial-js.
+    -p specify which local port to use, you can run multiple tunnels simultaneously
+    -x debug mode
 "
 
 USE_SSL=0
+APP="trivial-js"
+PORT=63306
 
-args=`getopt shx $*`; errcode=$?; set -- $args
+args=`getopt a:p:shx $*`; errcode=$?; set -- $args
 if [ 0 -ne $errcode ]; then echo ; echo "$usage" ; exit $errcode ; fi
 
 for i ; do
     case $i in
+        -a)
+            APP=$2 ; shift ;
+            echo "Using app: $APP"
+            shift ;;
+        -p)
+            PORT=$2 ; shift ;
+            echo "Using port: $PORT"
+            shift ;;
         -h)
             echo "$usage"
             exit 0
@@ -42,26 +57,28 @@ fi
 
 # I used to try to cache the service key info, but it was too hard to
 # send the string to jq without errors
-# SERVICE_KEY_JSON="'"$(cf service-key $SERVICE_NAME $SERVICE_KEY | tail +3)"'"
+SVC_JSON=`mktemp /tmp/${SCRIPT}.XXXXXX` || exit 1
+cf service-key $SERVICE_NAME $SERVICE_KEY | tail +3 > ${SVC_JSON}
 
-SERVICE_IP=$(cf service-key $SERVICE_NAME $SERVICE_KEY | tail +3 | jq .hostname | tr -d \")
-USER_NAME=$(cf service-key $SERVICE_NAME $SERVICE_KEY | tail +3 | jq .username | tr -d \")
-USER_PW=$(cf service-key $SERVICE_NAME $SERVICE_KEY | tail +3 | jq .password | tr -d \")
-DATABASE=$(cf service-key $SERVICE_NAME $SERVICE_KEY | tail +3 | jq .name | tr -d \")
+SERVICE_IP=$(jq .hostname ${SVC_JSON} | tr -d \")
+USER_NAME=$(jq .username ${SVC_JSON} | tr -d \")
+USER_PW=$(jq .password ${SVC_JSON} | tr -d \")
+DATABASE=$(jq .name ${SVC_JSON} | tr -d \")
 if [ $USE_TLS ]; then
-    cf service-key $SERVICE_NAME $SERVICE_KEY | tail +3 | jq .ca_certificate | tr -d \" > /tmp/$SERVICE_KEY.crt
+    jq .ca_certificate ${SVC_JSON} | tr -d \" > /tmp/$SERVICE_KEY.crt
     if [ $? ]; then
         CACERT=/tmp/$SERVICE_KEY.crt
         perl -pe 's/\\n/\n/g' -i $CACERT
     fi
 fi
+rm $SVC_JSON ;
 
 LOCK_FILE=$HOME/.${SERVICE_NAME}.tunnel
 
-## FIXME: improvement, accept an optional arg to use an existing app
-APP_GUID=$(cf app --guid trivial-js)
+APP_GUID=$(cf app --guid $APP)
+
 if [ 0 != $? ]; then
-    echo "trivial-js not running. attempting to push."
+    echo "$APP not running. attempting to push."
     (cd $HOME/workspace/trivial-js ; cf push)
     APP_GUID=$(cf app --guid trivial-js)
     if [ 0 != $? ]; then
@@ -70,16 +87,19 @@ if [ 0 != $? ]; then
     fi
 fi
 
-## FIXME: improvement, allow user to specify local port
 function start_tunnel() {
     (touch $LOCK_FILE ; \
-     cf ssh -N -L 63306:$SERVICE_IP:3306 trivial-js && rm $LOCK_FILE) &
+     cf ssh -N -L $PORT:$SERVICE_IP:3306 $APP && rm $LOCK_FILE ; \
+     trap 'echo "Removing ${LOCK_FILE}"; rm -f -- "${LOCK_FILE}"' INT TERM HUP EXIT ;) &
     echo $! > $LOCK_FILE ;
 }
 
 if [ ! -f $LOCK_FILE ]; then
     start_tunnel ;
-    trap 'rm -f -- "${LOCK_FILE}"' INT TERM HUP EXIT ;
+    echo "Sleeping to allow tunnel to establish connection..."
+    for i in 1 2 3 4; do /bin/echo -n "$i... " ; sleep 1 ; done
+    echo
+
 else
     NUM=$(ps auxww | tail +2 | grep -v grep | grep -c `cat $LOCK_FILE`)
     if [ 1 = $NUM ]; then echo "Tunnel still running.";
@@ -89,10 +109,9 @@ else
     fi
 fi
 
-sleep 2 # Necessary to allow tunnel to establish connection
 
 if [ $USE_TLS ]; then
-    mysql --ssl --ssl-verify-server-cert --ssl-ca=$CACERT -u${USER_NAME} -p${USER_PW} -h 127.0.0.1 -P 63306 ${DATABASE}
+    mysql --ssl --ssl-verify-server-cert --ssl-ca=$CACERT -u${USER_NAME} -p${USER_PW} -h127.0.0.1 -P${PORT} ${DATABASE}
 else
-    mysql -u${USER_NAME} -p${USER_PW} -h 127.0.0.1 -P 63306 ${DATABASE}
+    mysql -u${USER_NAME} -p${USER_PW} -h127.0.0.1 -P${PORT} ${DATABASE}
 fi
