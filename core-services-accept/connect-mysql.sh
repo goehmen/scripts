@@ -96,8 +96,8 @@ function start_tunnel() {
 
 if [ ! -f $LOCK_FILE ]; then
     start_tunnel ;
-    echo "Sleeping to allow tunnel to establish connection..."
-    for i in 1 2 3 4; do /bin/echo -n "$i... " ; sleep 1 ; done
+    /bin/echo -n "Sleeping to allow tunnel to establish connection... "
+    for i in 4 3 2 1; do /bin/echo -n "$i... " ; sleep 1 ; done
     echo
 
 else
