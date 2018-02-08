@@ -83,7 +83,7 @@ case ${VERSION} in
 esac
 
 # If it hasn't already been downloaded, get the most recent RC in the correct AWS bucket
-s3File=$(aws --profile=$PROFILE s3 ls $s3Path| sort -r | awk 'NR == 1 {print $4}')
+s3File=$(aws --profile=$PROFILE s3 ls $s3Path | grep $VERSION | sort -r | awk 'NR == 1 {print $4}')
 if [ ! -f ${WORKDIR}/${s3File} ]; then 
     aws s3 cp ${s3Path}${s3File} ${WORKDIR}
 fi
