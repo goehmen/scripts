@@ -1,0 +1,7 @@
+#!/bin/sh
+
+export TS_G_ENV=$1
+PRIV=/var/tmp/${TS_G_ENV}.priv
+touch ${PRIV} && chmod 600 ${PRIV} && echo "$(jq -r .ops_manager_private_key < ~/Downloads/${TS_G_ENV}.json)" > ${PRIV}
+ssh -i ${PRIV} ubuntu@pcf.${TS_G_ENV}.cf-app.com
+
