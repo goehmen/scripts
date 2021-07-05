@@ -1,6 +1,8 @@
 #!/bin/bash
 # I hate to use bash, but I want to use arrays for stable/unstable URLs
 
+set -e
+
 # DEFAULTS
 cli="cf"
 rel=1
@@ -42,16 +44,23 @@ Options:
 # Switched from wget to curl, since OSX doesn't ship with wget
 # When downloading CF, identify source as "internal" (vs github)
 
-version="0.0.3"
+version="0.0.4"
 
 # Format is OS_CLI(Release Unstable)
-darwin_CF=("https://cli.run.pivotal.io/stable?release=macosx64-binary&source=internal" "https://cli.run.pivotal.io/edge?arch=macosx64&source=internal")
+darwin_CF=("https://cli.run.pivotal.io/stable?release=macosx64-binary&source=internal" # Stable
+           "https://cli.run.pivotal.io/edge?arch=macosx64&source=internal")            # Edge
 # Assuming 64 bit versions only
-linux_CF=("https://cli.run.pivotal.io/stable?release=linux64-binary&source=internal" "https://cli.run.pivotal.io/edge?arch=linux64&source=internal")
-windows_CF=("https://cli.run.pivotal.io/stable?release=windows64-exe&source=internal" "https://cli.run.pivotal.io/edge?arch=windows64&source=internal")
+linux_CF=("https://cli.run.pivotal.io/stable?release=linux64-binary&source=internal"   # Stable
+          "https://cli.run.pivotal.io/edge?arch=linux64&source=internal")              # Edge
+windows_CF=("https://cli.run.pivotal.io/stable?release=windows64-exe&source=internal"  # Stable
+            "https://cli.run.pivotal.io/edge?arch=windows64&source=internal")          # Edge
 #
-darwin_LTC=("https://lattice.s3.amazonaws.com/releases/latest/darwin-amd64/ltc" "https://lattice.s3.amazonaws.com/unstable/latest/darwin-amd64/ltc")
-linux_LTC=("https://lattice.s3.amazonaws.com/releases/latest/linux-amd64/ltc" "https://lattice.s3.amazonaws.com/unstable/latest/linux-amd64/ltc")
+darwin_LTC=("https://lattice.s3.amazonaws.com/releases/lattice-bundle-latest-osx.zip"  # Stable
+            "http://lattice.s3.amazonaws.com/nightly/lattice-bundle-latest-osx.zip")   # Edge
+# darwin_LTC=("https://lattice.s3.amazonaws.com/releases/latest/darwin-amd64/ltc" "https://lattice.s3.amazonaws.com/unstable/latest/darwin-amd64/ltc")
+linux_LTC=("https://lattice.s3.amazonaws.com/releases/lattice-bundle-latest-linux.zip" # Stable
+           "http://lattice.s3.amazonaws.com/nightly/lattice-bundle-latest-linux.zip")  # Edge
+# linux_LTC=("https://lattice.s3.amazonaws.com/releases/latest/linux-amd64/ltc" "https://lattice.s3.amazonaws.com/unstable/latest/linux-amd64/ltc")
 windows_LTC=("/bin/false" "/bin/false")
 #
 darwin_BOSH=("/bin/false" "/bin/false")
@@ -63,24 +72,30 @@ windows_BOSH=("/bin/false" "/bin/false")
 # Call like this: getver dir binary
 getver () {
     if [ -e ${1}/$2 ]; then
+        if [ ! -x ${1}/$2 -o ! -s ${1}/$2 ]; then
+            echo "ERROR: Current version of ltc not executable. Fix that, then try again."
+            exit 3
+        fi
+        
         current_ver=`${1}/$2 -v`
         version=$(echo $current_ver | sed -E 's/.*version (v*[^-[:space:]]+).*/\1/')
         # LTC final releases don't have a build number. CF still has a SHA.
-        echo $current_ver | egrep -q '[^-]+-([^-]+)'
+        set +e; echo $current_ver | egrep -q '[^-]+-([^-]+)'
         if [ 0 -eq $? ]; then
             build=$(echo $current_ver | sed -E 's/[^-]+-([^-]+).*/\1/')
         else
             build="N/A"
         fi
+        set -e
     else
         version="N/A"
     fi
 }
 
 download () {
-    curl -sL $1 > /tmp/$2-$$.bin
+    curl -sL $1 > $2-$$.bin
     if [ 0 -ne $? ]; then
-        rm /tmp/$2-$$.bin
+        rm $2-$$.bin
         echo "Error downloading $2. Aborting."
         exit -1
     fi
@@ -91,7 +106,11 @@ download () {
 relink () {
     if [ "$cur_version"X != "N/AX" -a "$cur_version"X != "$new_version"X ] ; then
         # This is a new version, so replace any .old with the current binary
-        if [ -e ${bindir}/${cli}.old ] ; then rm $bindir/${cli}.old; fi
+        if [ -e ${bindir}/${cli}.old -o -L ${bindir}/${cli}.old ] ; then
+            # -L seems redundant, but -e does not work if .old points
+            # to a file that DNE. Bug in /bin/test!?
+            rm $bindir/${cli}.old;
+        fi
         if [ ! -L ${bindir}/$cli ] ; then
             if [ "$cur_build"X != "N/AX" ]; then
                 mv ${bindir}/$cli ${bindir}/${cli}-$cur_version-$cur_build
@@ -117,12 +136,21 @@ relink () {
             mv ${bindir}/$cli ${bindir}/${cli}-$cur_version
         fi
     fi
-    
     # Finally, if we haven't moved it aside already, then we're just
     # overwriting the current version with a new build, so remove the
     # current binary.
-    if [ -e ${bindir}/$cli -a -L ${bindir}/$cli ] ; then rm ${bindir}/$cli; fi
+    if [ -L ${bindir}/$cli ] ; then rm ${bindir}/$cli; fi
 
+
+    # LTC ONLY - move the vagrant and terraform files into place.
+    # They are always versioned, so no shuffling or re-linking required.
+    if [ "ltc" == $cli ] ; then
+        bundledir=$(echo lattice-bundle-*)
+        if [ ! -d ${bindir}/$bundledir ]; then
+            mv lattice-bundle-* ${bindir}
+        fi
+    fi
+    
     if [ 0 -eq $rel ]; then
         mv $cli ${bindir}/${cli}-$new_version
         ln -s ${bindir}/${cli}-$new_version ${bindir}/$cli
@@ -225,7 +253,10 @@ getver ${bindir} $cli
 cur_version=$version
 cur_build=$build
 
-cd /tmp
+tmpdir="/tmp/${cli}-$$-$(date '+%m-%d-%Y_%H:%M:%S')"
+
+mkdir $tmpdir
+cd $tmpdir
 echo "Downloading $cli_uri"
 download $cli_uri $cli
 # ltc and cf CLIs are distributed slightly differently
@@ -235,8 +266,8 @@ case $cli in
         rm cf-$$.bin
         ;;
     ltc)
-        mv $cli-$$.bin $cli
-        chmod a+rx $cli
+        unzip -q ltc-$$.bin
+        mv */ltc .
         ;;
     bosh)
         echo "BOSH not supported. How did you even get to this step, anyways?"
@@ -245,20 +276,26 @@ case $cli in
 esac
 getver . $cli
 new_version=$version
-if [ 1 -eq $rel ]; then
-    new_build=$build
-fi
+new_build=$build
 
 echo "Installing in $bindir"
 relink
+cd /tmp ; rm -r $tmpdir
 
 # If we've updated the .old link, report what the new .old is.
 if [ "$old_version"X != "N/AX" ]; then
     if [ "$old_build"X != "N/AX" ]; then
-        echo "Old version ${old_version}-$old_build: ${bindir}/${cli}.old";
+        echo "${bindir}/${cli}.old: ${old_version}-$old_build ";
     else
-        echo "Old version ${old_version}: ${bindir}/${cli}.old";
+        echo "${bindir}/${cli}.old: ${old_version}";
     fi
 fi
 
-echo "New version ${new_version}: ${bindir}/${cli}"
+if [ "$new_build"X != "N/AX" ]; then
+    echo "${bindir}/${cli}: ${new_version}-${new_build}"
+else
+    echo "${bindir}/${cli}: ${new_version}"
+fi
+
+exit 0
+
